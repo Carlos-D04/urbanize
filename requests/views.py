@@ -14,3 +14,13 @@ class RequestViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.role == user.Role.CITIZEN:
+            return Request.objects.filter(author = user)
+        if user.role == user.Role.STAFF:
+            return Request.objects.filter(department = user.department)
+        if user.role == user.Role.ADMIN:
+            return Request.objects.all()
+        return Request.objects.none()
