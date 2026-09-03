@@ -23,3 +23,14 @@ class Request(models.Model):
 
     def __str__(self):
         return self.title
+
+class RequestHistory(models.Model):
+    # mudar para cascade no futuro se ao apagar a request quiser que o histórico seja apagado junto
+    request = models.ForeignKey(Request, on_delete=models.PROTECT)
+    changed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    old_status = models.CharField(max_length=20, choices=Request.Status.choices)
+    new_status = models.CharField(max_length=20, choices=Request.Status.choices)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.request} - {self.old_status} -> {self.new_status}"
