@@ -3,6 +3,7 @@ from rest_framework.permissions import IsAuthenticated
 
 from .models import Request
 from .serializers import RequestSerializer
+from .permissions import RequestPermission
 
 # Create your views here.
 
@@ -10,7 +11,7 @@ class RequestViewSet(viewsets.ModelViewSet):
     queryset = Request.objects.all()
     serializer_class = RequestSerializer
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, RequestPermission]
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
