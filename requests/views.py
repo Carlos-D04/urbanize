@@ -28,6 +28,7 @@ class RequestViewSet(viewsets.ModelViewSet):
             return Request.objects.all()
         return Request.objects.none()
 
+    # action here just because i dont want status to be a field that can be changed in any type of request.
     @action(detail = True, methods=["patch"], url_path="change-status")
     def change_status(self, request, pk=None):
         # order of the next status transitions allowed.
@@ -36,6 +37,7 @@ class RequestViewSet(viewsets.ModelViewSet):
             Request.Status.IN_REVIEW: Request.Status.IN_PROGRESS,
             Request.Status.IN_PROGRESS: Request.Status.RESOLVED
         }
+        
         request_obj = self.get_object() #ID from URL
 
         old_status = request_obj.status
@@ -51,5 +53,3 @@ class RequestViewSet(viewsets.ModelViewSet):
         RequestHistory.objects.create(request = request_obj, old_status = old_status, new_status = next_status, changed_by = request.user)
 
         return Response({"detail": "Status updated successfully"}, status=status.HTTP_200_OK)
-
-    
