@@ -236,6 +236,19 @@ class RequestAPITestCase(APITestCase):
 
         self.assertEqual(RequestHistory.objects.count(), 0)
 
+    def test_admin_can_change_request_status(self):
+        self.client.force_authenticate(user=self.admin)
 
+        data = {"status": Request.Status.IN_REVIEW}
+
+        response = self.client.patch(f"/requests/{self.citizen_request.id}/change-status/", data=data)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.citizen_request.refresh_from_db()
+
+        self.assertEqual(self.citizen_request.status, Request.Status.IN_REVIEW)
+
+        self.assertEqual(RequestHistory.objects.count(), 1)
 
         
