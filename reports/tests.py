@@ -46,11 +46,11 @@ class RequestAPITestCase(APITestCase):
         response = self.client.get("/requests/")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        #pegando todos os ids das requests retornadas
+        
         request_ids = [request["id"] for request in response.data]
-        #verifica se A está dentro de B
+        
         self.assertIn(self.citizen_request.id,request_ids)
-        #verifica se A não está dentro de B
+        
         self.assertNotIn(self.other_citizen_request.id,request_ids)
 
     def test_citizen_can_edit_own_pending_request(self):
