@@ -5,7 +5,7 @@ from rest_framework.test import APITestCase
 
 from departments.models import Department
 from categories.models import Category
-from .models import Request
+from .models import Request, RequestHistory
 
 
 User = get_user_model()
@@ -184,3 +184,58 @@ class RequestAPITestCase(APITestCase):
         self.other_citizen_request2.refresh_from_db()
 
         self.assertEqual(self.other_citizen_request2.title, "Super cool title")
+
+    def test_staff_can_change_request_status(self):
+        self.client.force_authenticate(user=self.staff)
+
+        data = {"status": Request.Status.IN_REVIEW}
+
+        self.assertEqual(RequestHistory.objects.count(), 0)
+
+        response = self.client.patch(f"/requests/{self.citizen_request.id}/change-status/", data=data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.citizen_request.refresh_from_db()
+
+        self.assertEqual(self.citizen_request.status, Request.Status.IN_REVIEW)
+
+        self.assertEqual(RequestHistory.objects.count(), 1)
+
+    def test_staff_cannot_skip_request_status(self):
+        self.client.force_authenticate(user=self.staff)
+
+        data = {"status": Request.Status.RESOLVED}
+
+        self.assertEqual(RequestHistory.objects.count(), 0)
+
+        response = self.client.patch(f"/requests/{self.citizen_request.id}/change-status/", data=data)
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        self.citizen_request.refresh_from_db()
+
+        self.assertEqual(self.citizen_request.status, Request.Status.PENDING)
+
+        self.assertEqual(RequestHistory.objects.count(), 0)
+
+    def test_citizen_cannot_change_request_status(self):
+        self.client.force_authenticate(user=self.citizen)
+
+        data = {"status": Request.Status.IN_REVIEW}
+
+        self.assertEqual(RequestHistory.objects.count(), 0)
+        
+        response = self.client.patch(f"/requests/{self.citizen_request.id}/change-status/", data=data)
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        self.citizen_request.refresh_from_db()
+
+        self.assertEqual(self.citizen_request.status, Request.Status.PENDING)
+
+        self.assertEqual(RequestHistory.objects.count(), 0)
+
+
+
+        

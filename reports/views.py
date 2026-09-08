@@ -6,7 +6,7 @@ from rest_framework import status
 
 from .models import Request, RequestHistory
 from .serializers import RequestSerializer
-from .permissions import RequestPermission
+from .permissions import RequestPermission, StatusPermission
 
 # Create your views here.
 
@@ -29,7 +29,7 @@ class RequestViewSet(viewsets.ModelViewSet):
         return Request.objects.none()
 
     # action here just because i dont want status to be a field that can be changed in any type of request.
-    @action(detail = True, methods=["patch"], url_path="change-status")
+    @action(detail = True, methods=["patch"], url_path="change-status", permission_classes = [IsAuthenticated, StatusPermission])
     def change_status(self, request, pk=None):
         # order of the next status transitions allowed.
         allowed_transitions = { 
