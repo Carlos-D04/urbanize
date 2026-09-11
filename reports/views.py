@@ -3,6 +3,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import status
+from django.db import transaction
 
 from .models import Request, RequestHistory
 from .serializers import RequestSerializer, RequestStatusSerializer
@@ -51,8 +52,8 @@ class RequestViewSet(viewsets.ModelViewSet):
             return Response({"detail": "Invalid status transition"}, status=status.HTTP_400_BAD_REQUEST)
 
         request_obj.status = next_status
-        request_obj.save()
-
-        RequestHistory.objects.create(request = request_obj, old_status = old_status, new_status = next_status, changed_by = request.user)
+        with transaction.atomic():
+            request_obj.save()
+            RequestHistory.objects.create(request = request_obj, old_status = old_status, new_status = next_status, changed_by = request.user)
 
         return Response({"detail": "Status updated successfully"}, status=status.HTTP_200_OK)

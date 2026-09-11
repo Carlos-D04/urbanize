@@ -2,6 +2,7 @@ from django.contrib.auth import get_user_model
 
 from rest_framework import status
 from rest_framework.test import APITestCase
+from unittest.mock import patch
 
 from departments.models import Department
 from categories.models import Category
@@ -265,5 +266,19 @@ class RequestAPITestCase(APITestCase):
         self.assertEqual(self.citizen_request.status, Request.Status.PENDING)
 
         self.assertEqual(RequestHistory.objects.count(), 0)
+          
+    def test_status_change_rolls_back_if_history_creation_fails(self):
+        self.client.force_authenticate(user=self.staff)
+
+        data = {"status": Request.Status.IN_REVIEW}
+
+        with self.assertRaises(Exception):
+            with patch("reports.views.RequestHistory.objects.create",side_effect = Exception("Simulated error")):
+                self.client.patch(f"/requests/{self.citizen_request.id}/change-status/", data=data, format="json")
+
+        self.citizen_request.refresh_from_db()
+
         
-        
+        self.assertEqual(self.citizen_request.status, Request.Status.PENDING)
+
+        self.assertEqual(RequestHistory.objects.count(), 0)
