@@ -65,6 +65,13 @@ class RequestAPITestCase(APITestCase):
                 location="Aracaju"
         )
 
+        RequestHistory.objects.create(
+            request=self.citizen_request,
+            changed_by=self.staff,
+            old_status=Request.Status.PENDING,
+            new_status=Request.Status.IN_REVIEW
+        )
+
     def test_citizen_can_only_see_own_requests(self):
         self.client.force_authenticate(user=self.citizen)
 
@@ -282,3 +289,22 @@ class RequestAPITestCase(APITestCase):
         self.assertEqual(self.citizen_request.status, Request.Status.PENDING)
 
         self.assertEqual(RequestHistory.objects.count(), 0)
+
+    def test_can_check_own_request_history(self):
+        self.client.force_authenticate(user = self.citizen)
+
+        RequestHistory.objects.create(
+            request=self.citizen_request,
+            changed_by=self.staff,
+            old_status=Request.Status.PENDING,
+            new_status=Request.Status.IN_REVIEW
+        )
+
+        response = self.client.get(f"/requests/{self.citizen_request.id}/history/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.assertEqual(len(response.data), 2)
+
+        self.assertEqual(response.data[0]["old_status"],Request.Status.PENDING)
+        self.assertEqual(response.data[0]["new_status"],Request.Status.IN_REVIEW)

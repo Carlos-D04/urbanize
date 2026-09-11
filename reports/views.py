@@ -4,9 +4,10 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import status
 from django.db import transaction
+from rest_framework.permissions import SAFE_METHODS
 
 from .models import Request, RequestHistory
-from .serializers import RequestSerializer, RequestStatusSerializer
+from .serializers import RequestSerializer, RequestStatusSerializer, RequestHistorySerializer
 from .permissions import RequestPermission, StatusPermission
 
 # Create your views here.
@@ -57,3 +58,13 @@ class RequestViewSet(viewsets.ModelViewSet):
             RequestHistory.objects.create(request = request_obj, old_status = old_status, new_status = next_status, changed_by = request.user)
 
         return Response({"detail": "Status updated successfully"}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["get"], url_path="history", permission_classes = [IsAuthenticated, RequestPermission])
+    def check_history(self, request, pk=None):
+        request_obj = self.get_object()
+
+        queryset = RequestHistory.objects.filter(request = request_obj)
+
+        serializer = RequestHistorySerializer(queryset, many = True)
+
+        return Response(serializer.data) 

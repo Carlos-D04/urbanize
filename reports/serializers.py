@@ -1,4 +1,4 @@
-from .models import Request
+from .models import Request, RequestHistory
 from rest_framework import serializers
 
 class RequestSerializer(serializers.ModelSerializer):
@@ -15,3 +15,9 @@ class RequestSerializer(serializers.ModelSerializer):
 class RequestStatusSerializer(serializers.Serializer):
     status = serializers.ChoiceField(choices=Request.Status.choices)
 
+
+class RequestHistorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RequestHistory
+        fields = ["request", "changed_by", "old_status", "new_status", "created_at"]
+        read_only_fields = ["request", "changed_by", "old_status", "new_status", "created_at"]
