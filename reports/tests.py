@@ -251,4 +251,19 @@ class RequestAPITestCase(APITestCase):
 
         self.assertEqual(RequestHistory.objects.count(), 1)
 
+    def test_cannot_change_to_invalid_status(self):
+        self.client.force_authenticate(user=self.staff)
+
+        data = {"status": "Banana"}
+
+        response = self.client.patch(path=f"/requests/{self.citizen_request.id}/change-status/", data=data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        self.citizen_request.refresh_from_db()
+
+        self.assertEqual(self.citizen_request.status, Request.Status.PENDING)
+
+        self.assertEqual(RequestHistory.objects.count(), 0)
+        
         

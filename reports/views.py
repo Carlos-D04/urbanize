@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from .models import Request, RequestHistory
-from .serializers import RequestSerializer
+from .serializers import RequestSerializer, RequestStatusSerializer
 from .permissions import RequestPermission, StatusPermission
 
 # Create your views here.
@@ -31,6 +31,9 @@ class RequestViewSet(viewsets.ModelViewSet):
     # action here just because i dont want status to be a field that can be changed in any type of request.
     @action(detail = True, methods=["patch"], url_path="change-status", permission_classes = [IsAuthenticated, StatusPermission])
     def change_status(self, request, pk=None):
+        serializer = RequestStatusSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
         # order of the next status transitions allowed.
         allowed_transitions = { 
             Request.Status.PENDING : Request.Status.IN_REVIEW,
@@ -41,7 +44,7 @@ class RequestViewSet(viewsets.ModelViewSet):
         request_obj = self.get_object() #ID from URL
 
         old_status = request_obj.status
-        new_status = request.data.get("status")
+        new_status = serializer.validated_data["status"]
         next_status = allowed_transitions.get(old_status)
 
         if new_status != next_status:

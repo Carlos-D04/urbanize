@@ -11,3 +11,7 @@ class RequestSerializer(serializers.ModelSerializer):
         category = validated_data["category"]
 
         return Request.objects.create(department=category.department, **validated_data)
+
+class RequestStatusSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=Request.Status.choices)
+
