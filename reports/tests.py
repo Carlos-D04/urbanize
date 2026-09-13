@@ -65,13 +65,6 @@ class RequestAPITestCase(APITestCase):
                 location="Aracaju"
         )
 
-        RequestHistory.objects.create(
-            request=self.citizen_request,
-            changed_by=self.staff,
-            old_status=Request.Status.PENDING,
-            new_status=Request.Status.IN_REVIEW
-        )
-
     def test_citizen_can_only_see_own_requests(self):
         self.client.force_authenticate(user=self.citizen)
 
@@ -79,7 +72,7 @@ class RequestAPITestCase(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         
-        request_ids = [request["id"] for request in response.data]
+        request_ids = [request["id"] for request in response.data["results"]]
         
         self.assertIn(self.citizen_request.id,request_ids)
         
@@ -137,7 +130,7 @@ class RequestAPITestCase(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-        requests_id = [request["id"] for request in response.data]
+        requests_id = [request["id"] for request in response.data["results"]]
 
         self.assertIn(self.citizen_request.id, requests_id)
 
@@ -173,7 +166,7 @@ class RequestAPITestCase(APITestCase):
         self.client.force_authenticate(user=self.admin)
 
         response = self.client.get("/requests/")
-        request_ids = [request["id"] for request in response.data]
+        request_ids = [request["id"] for request in response.data["results"]]
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
@@ -304,7 +297,7 @@ class RequestAPITestCase(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-        self.assertEqual(len(response.data), 2)
+        self.assertEqual(len(response.data), 1)
 
         self.assertEqual(response.data[0]["old_status"],Request.Status.PENDING)
         self.assertEqual(response.data[0]["new_status"],Request.Status.IN_REVIEW)
@@ -343,7 +336,7 @@ class RequestAPITestCase(APITestCase):
         response = self.client.get(f"/requests/{self.other_citizen_request.id}/history/")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        
+
         self.assertEqual(len(response.data), 0)
 
 
