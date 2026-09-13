@@ -308,3 +308,44 @@ class RequestAPITestCase(APITestCase):
 
         self.assertEqual(response.data[0]["old_status"],Request.Status.PENDING)
         self.assertEqual(response.data[0]["new_status"],Request.Status.IN_REVIEW)
+
+    def test_other_citizen_cannot_check_request_history(self):
+        self.client.force_authenticate(user=self.other_citizen)
+
+        response = self.client.get(f"/requests/{self.citizen_request.id}/history/")
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_staff_can_check_own_department_request_history(self):
+        self.client.force_authenticate(user=self.staff)
+
+        response = self.client.get(f"/requests/{self.citizen_request.id}/history/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_staff_cannot_check_other_department_request_history(self):
+        self.client.force_authenticate(user=self.staff)
+
+        response = self.client.get(f"/requests/{self.other_citizen_request2.id}/history/")
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_admin_can_check_any_request_history(self):
+        self.client.force_authenticate(user=self.admin)
+
+        response = self.client.get(f"/requests/{self.other_citizen_request.id}/history/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_request_without_history_returns_empty_list(self):
+        self.client.force_authenticate(user=self.admin)
+
+        response = self.client.get(f"/requests/{self.other_citizen_request.id}/history/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        self.assertEqual(len(response.data), 0)
+
+
+
+
