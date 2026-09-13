@@ -1,4 +1,5 @@
 from .models import Request, RequestHistory
+from accounts.serializers import UserSerializer
 from rest_framework import serializers
 
 class RequestSerializer(serializers.ModelSerializer):
@@ -17,6 +18,8 @@ class RequestStatusSerializer(serializers.Serializer):
 
 
 class RequestHistorySerializer(serializers.ModelSerializer):
+    changed_by = UserSerializer(read_only = True)
+
     class Meta:
         model = RequestHistory
         fields = ["request", "changed_by", "old_status", "new_status", "created_at"]
