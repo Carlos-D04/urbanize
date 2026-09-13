@@ -16,6 +16,7 @@ class RequestViewSet(viewsets.ModelViewSet):
     queryset = Request.objects.all()
     serializer_class = RequestSerializer
     permission_classes = [IsAuthenticated, RequestPermission]
+    filterset_fields = ["status", "title", "department", "category"]
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
