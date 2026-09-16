@@ -18,7 +18,7 @@ class RequestStatusSerializer(serializers.Serializer):
 
 
 class RequestHistorySerializer(serializers.ModelSerializer):
-    changed_by = UserSerializer(read_only = True)
+    changed_by = UserSerializer(read_only = True )
 
     class Meta:
         model = RequestHistory
