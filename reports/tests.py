@@ -361,3 +361,63 @@ class RequestAPITestCase(APITestCase):
         self.assertIn(resolved_request.id, request_ids)
         self.assertNotIn(self.citizen_request.id, request_ids)
 
+    def test_citizen_can_search_own_requests_by_text(self):
+        self.client.force_authenticate(user=self.citizen)
+
+        searched_request = Request.objects.create(
+            author=self.citizen,
+            category=self.category,
+            department=self.department,
+            title="Buraco na avenida",
+            description="Problema grave na via",
+            location="Aracaju"
+        )
+
+        response = self.client.get("/requests/?search=buraco")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        request_ids = [request["id"] for request in response.data["results"]]
+
+        self.assertIn(searched_request.id, request_ids)
+        self.assertNotIn(self.citizen_request.id, request_ids)
+
+    def test_citizen_can_search_requests_by_description(self):
+        self.client.force_authenticate(user=self.citizen)
+
+        searched_request = Request.objects.create(
+            author=self.citizen,
+            category=self.category,
+            department=self.department,
+            title="Problema na rua",
+            description="Existe um buraco enorme na pista",
+            location="Aracaju"
+        )
+
+        response = self.client.get("/requests/?search=buraco")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        request_ids = [request["id"]for request in response.data["results"]]
+
+        self.assertIn(searched_request.id, request_ids)
+
+    def test_search_does_not_return_another_citizen_request(self):
+        self.client.force_authenticate(user=self.citizen)
+
+        other_request = Request.objects.create(
+            author=self.other_citizen,
+            category=self.category,
+            department=self.department,
+            title="Buraco na avenida",
+            description="Problema grave na via",
+            location="Aracaju"
+        )
+
+        response = self.client.get("/requests/?search=buraco")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        request_ids = [request["id"]for request in response.data["results"]]
+
+        self.assertNotIn(other_request.id, request_ids)
