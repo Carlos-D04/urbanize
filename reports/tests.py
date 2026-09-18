@@ -421,3 +421,36 @@ class RequestAPITestCase(APITestCase):
         request_ids = [request["id"]for request in response.data["results"]]
 
         self.assertNotIn(other_request.id, request_ids)
+
+    def test_citizen_can_filter_own_requests_by_category(self):
+        self.client.force_authenticate(user=self.citizen)
+
+        category_request = Request.objects.create(
+            author=self.citizen,
+            category=self.other_category,
+            department=self.other_department,
+            title="Broken street light",
+            description="Street light problem",
+            location="Aracaju"
+        )
+
+        response = self.client.get(f"/requests/?category={self.other_category.id}")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        request_ids = [request["id"] for request in response.data["results"]]
+
+        self.assertIn(category_request.id, request_ids)
+        self.assertNotIn(self.citizen_request.id, request_ids)
+
+    def test_staff_can_filter_requests_by_department(self):
+        self.client.force_authenticate(user=self.staff)
+
+        response = self.client.get(f"/requests/?department={self.citizen_request.department.id}")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        request_id = [request["id"] for request in response.data["results"]]
+
+        self.assertIn(self.citizen_request.id, request_id)
+        self.assertNotIn(self.other_citizen_request2.id, request_id)
