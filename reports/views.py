@@ -6,6 +6,7 @@ from rest_framework import status
 from django.db import transaction
 from rest_framework.permissions import SAFE_METHODS
 
+from .filters import RequestFilter 
 from .models import Request, RequestHistory
 from .serializers import RequestSerializer, RequestStatusSerializer, RequestHistorySerializer
 from .permissions import RequestPermission, StatusPermission
@@ -16,7 +17,7 @@ class RequestViewSet(viewsets.ModelViewSet):
     queryset = Request.objects.all()
     serializer_class = RequestSerializer
     permission_classes = [IsAuthenticated, RequestPermission]
-    filterset_fields = ["status"]
+    filterset_class = RequestFilter
     search_fields = ["title", "description"]
 
     def perform_create(self, serializer):
