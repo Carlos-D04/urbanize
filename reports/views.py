@@ -2,8 +2,9 @@ from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.mixins import CreateModelMixin, RetrieveModelMixin,UpdateModelMixin,ListModelMixin
+from rest_framework.viewsets import GenericViewSet
 from rest_framework import status
-from django.db import transaction
 from rest_framework.permissions import SAFE_METHODS
 
 from .filters import RequestFilter 
@@ -14,7 +15,7 @@ from .services import change_request_status, InvalidStatusTransition
 
 # Create your views here.
 
-class RequestViewSet(viewsets.ModelViewSet):
+class RequestViewSet(CreateModelMixin, RetrieveModelMixin,UpdateModelMixin,ListModelMixin, GenericViewSet):
     queryset = Request.objects.all()
     serializer_class = RequestSerializer
     permission_classes = [IsAuthenticated, RequestPermission]

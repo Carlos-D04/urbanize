@@ -1,12 +1,23 @@
 from .models import Request, RequestHistory
+from accounts.models import User
 from accounts.serializers import UserSerializer
 from rest_framework import serializers
+
+
+UPDATE_METHODS = ('PATCH', "PUT")
+
 
 class RequestSerializer(serializers.ModelSerializer):
     class Meta:
         model = Request
         fields = ['id', 'title', 'description', 'location', 'category', 'author', 'department', 'status', 'created_at', 'updated_at']
         read_only_fields = ['id', 'author', 'department', 'status', 'created_at', 'updated_at']
+
+    # checking the brute data first 
+    def validate(self, attrs):
+        if self.context["request"].user.role == User.Role.CITIZEN and self.context["request"].method in UPDATE_METHODS and "category" in self.initial_data:
+            raise serializers.ValidationError("Validation Error")
+        return attrs 
 
     def create(self, validated_data):
         category = validated_data["category"]

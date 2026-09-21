@@ -15,8 +15,6 @@ class User(AbstractUser):
         choices=Role.choices,
         default=Role.CITIZEN
         )
-
-
     
     department = models.ForeignKey(
         "departments.Department",
@@ -24,3 +22,5 @@ class User(AbstractUser):
         null=True,
         blank=True
         )
+
+    
