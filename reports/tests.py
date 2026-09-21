@@ -484,3 +484,97 @@ class RequestAPITestCase(APITestCase):
         self.assertEqual(history.old_status, Request.Status.PENDING)
         self.assertEqual(history.new_status, Request.Status.IN_REVIEW)
 
+    def test_citizen_cannot_change_category(self):
+        self.client.force_authenticate(user=self.citizen)
+
+        data = {
+            "category": self.other_category.id
+        }
+
+        response = self.client.patch(
+            f"/requests/{self.citizen_request.id}/",
+            data=data,
+            format="json"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        self.citizen_request.refresh_from_db()
+
+        self.assertEqual(
+            self.citizen_request.category,
+            self.category
+        )
+
+    def test_staff_can_change_category(self):
+        self.client.force_authenticate(user=self.staff)
+
+        data = {
+            "category": self.other_category.id
+        }
+
+        response = self.client.patch(
+            f"/requests/{self.citizen_request.id}/",
+            data=data,
+            format="json"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.citizen_request.refresh_from_db()
+
+        self.assertEqual(
+            self.citizen_request.category,
+            self.other_category
+        )
+
+
+    def test_admin_can_change_category(self):
+        self.client.force_authenticate(user=self.admin)
+
+        data = {
+            "category": self.other_category.id
+        }
+
+        response = self.client.patch(
+            f"/requests/{self.citizen_request.id}/",
+            data=data,
+            format="json"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.citizen_request.refresh_from_db()
+
+        self.assertEqual(
+            self.citizen_request.category,
+            self.other_category
+        )
+
+
+    def test_citizen_can_update_other_fields_without_changing_category(self):
+        self.client.force_authenticate(user=self.citizen)
+
+        data = {
+            "title": "Updated title"
+        }
+
+        response = self.client.patch(
+            f"/requests/{self.citizen_request.id}/",
+            data=data,
+            format="json"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.citizen_request.refresh_from_db()
+
+        self.assertEqual(
+            self.citizen_request.title,
+            "Updated title"
+        )
+
+        self.assertEqual(
+            self.citizen_request.category,
+            self.category
+        )
