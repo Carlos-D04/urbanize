@@ -10,6 +10,7 @@ from .filters import RequestFilter
 from .models import Request, RequestHistory
 from .serializers import RequestSerializer, RequestStatusSerializer, RequestHistorySerializer
 from .permissions import RequestPermission, StatusPermission
+from .services import change_request_status, InvalidStatusTransition
 
 # Create your views here.
 
@@ -40,27 +41,15 @@ class RequestViewSet(viewsets.ModelViewSet):
     def change_status(self, request, pk=None):
         serializer = RequestStatusSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-
-        # order of the next status transitions allowed.
-        allowed_transitions = { 
-            Request.Status.PENDING : Request.Status.IN_REVIEW,
-            Request.Status.IN_REVIEW: Request.Status.IN_PROGRESS,
-            Request.Status.IN_PROGRESS: Request.Status.RESOLVED
-        }
         
-        request_obj = self.get_object() #ID from URL
+        request_obj = self.get_object() # gets the PK from URL
 
-        old_status = request_obj.status
-        new_status = serializer.validated_data["status"]
-        next_status = allowed_transitions.get(old_status)
+        try:
+            change_request_status(request_obj, new_status = serializer.validated_data["status"], changed_by = request.user)
 
-        if new_status != next_status:
-            return Response({"detail": "Invalid status transition"}, status=status.HTTP_400_BAD_REQUEST)
+        except InvalidStatusTransition:
+            return Response({"detail": "Invalid status transition"}, status = status.HTTP_400_BAD_REQUEST)
 
-        request_obj.status = next_status
-        with transaction.atomic():
-            request_obj.save()
-            RequestHistory.objects.create(request = request_obj, old_status = old_status, new_status = next_status, changed_by = request.user)
 
         return Response({"detail": "Status updated successfully"}, status=status.HTTP_200_OK)
 

@@ -7,7 +7,7 @@ from unittest.mock import patch
 from departments.models import Department
 from categories.models import Category
 from .models import Request, RequestHistory
-
+from .services import InvalidStatusTransition, change_request_status
 
 User = get_user_model()
 
@@ -454,3 +454,33 @@ class RequestAPITestCase(APITestCase):
 
         self.assertIn(self.citizen_request.id, request_id)
         self.assertNotIn(self.other_citizen_request2.id, request_id)
+
+    def test_idk(self): # Service Test
+
+        old_status = self.citizen_request.status
+
+        with self.assertRaises(InvalidStatusTransition):
+            change_request_status(self.citizen_request, new_status = Request.Status.IN_PROGRESS, changed_by = self.staff)
+
+        self.citizen_request.refresh_from_db()
+        
+        self.assertEqual(old_status, self.citizen_request.status)
+
+    def test_service_changes_request_status(self):
+
+        self.assertEqual(RequestHistory.objects.count(), 0)
+
+        change_request_status(self.citizen_request, Request.Status.IN_REVIEW, changed_by = self.staff)
+
+        self.citizen_request.refresh_from_db()
+
+        self.assertEqual(self.citizen_request.status, Request.Status.IN_REVIEW)
+
+        self.assertEqual(RequestHistory.objects.count(), 1)
+        history = RequestHistory.objects.get(request = self.citizen_request)
+
+        self.assertEqual(history.request, self.citizen_request)
+        self.assertEqual(history.changed_by, self.staff)
+        self.assertEqual(history.old_status, Request.Status.PENDING)
+        self.assertEqual(history.new_status, Request.Status.IN_REVIEW)
+
