@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'drf_spectacular',
     'accounts',
     'departments',
     'categories',
@@ -147,6 +148,7 @@ REST_FRAMEWORK = {
         "django_filters.rest_framework.DjangoFilterBackend", 
         "rest_framework.filters.SearchFilter",
         "rest_framework.filters.OrderingFilter"
-        ]
+        ],
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     
 }
