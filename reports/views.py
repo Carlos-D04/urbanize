@@ -19,6 +19,8 @@ class RequestViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, RequestPermission]
     filterset_class = RequestFilter
     search_fields = ["title", "description"]
+    ordering_fields = ["created_at", "updated_at"]
+    ordering = ["-created_at"]
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
