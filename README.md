@@ -31,75 +31,127 @@ A aplicação possui controle de acesso por diferentes níveis de usuário, flux
   - Transações para garantir consistência
   - Testes automatizados
 
+
 ## Arquitetura
 
-  Views
-    ↓
-  Serializers / Permissions
-    ↓
-  Services
-    ↓
-  Models
-    ↓
-  PostgreSQL
+```text
+Views
+  ↓
+Serializers / Permissions
+  ↓
+Services
+  ↓
+Models
+  ↓
+PostgreSQL
+```
 
 
 Principais endpoints
 
-  Método	Endpoint	Descrição
-  GET	/requests/	Lista solicitações permitidas ao usuário
-  POST	/requests/	Cria uma nova solicitação
-  GET	/requests/{id}/	Consulta uma solicitação
-  PATCH	/requests/{id}/	Atualiza uma solicitação
-  PATCH	/requests/{id}/change-status/	Altera o status
-  GET	/requests/{id}/history/	Consulta o histórico
-
-Filtros
-
-  Filtrar por status:
-  
-  GET /requests/?status=RESOLVED
-  
-  Buscar por texto:
-  
-  GET /requests/?search=buraco
-
-Controle de acesso
-  Perfil	Permissões principais
-  Citizen	Cria e acompanha suas próprias solicitações
-  Staff	Gerencia solicitações do próprio departamento
-  Admin	Acesso administrativo às solicitações
-  
-O sistema também restringe alterações de acordo com o status da solicitação e o departamento responsável.
+  | Método  | Endpoint                        | Descrição                                |
+  | ------- | ------------------------------- | ---------------------------------------- |
+  | `GET`   | `/requests/`                    | Lista solicitações permitidas ao usuário |
+  | `POST`  | `/requests/`                    | Cria uma nova solicitação                |
+  | `GET`   | `/requests/{id}/`               | Consulta uma solicitação                 |
+  | `PATCH` | `/requests/{id}/`               | Atualiza uma solicitação                 |
+  | `PATCH` | `/requests/{id}/change-status/` | Altera o status                          |
+  | `GET`   | `/requests/{id}/history/`       | Consulta o histórico                     |
 
 
-Testes
+## Filtros e busca
 
-  Execute a suíte de testes com:
-  
-  python manage.py test
+A API permite filtrar e pesquisar solicitações diretamente pelo endpoint de listagem.
 
-Os testes cobrem autenticação, permissões, solicitações, alteração de status, histórico, filtros e transações.
+### Filtrar por status
 
-Instalação
+```http
+GET /requests/?status=RESOLVED
+```
+### Buscar por texto
+```http
+GET /requests/?search=buraco
+```
 
-  git clone <URL_DO_REPOSITORIO>
-  cd urbanize
+## Controle de acesso
 
-  python -m venv venv
-  venv\Scripts\activate
-  
-  pip install -r requirements.txt
-  python manage.py migrate
-  python manage.py runserver
+O acesso às solicitações é definido de acordo com o perfil do usuário:
 
-O projeto utiliza variáveis de ambiente para configuração do banco de dados e informações sensíveis.
+| Perfil | Permissões principais |
+|---|---|
+| `Citizen` | Cria e acompanha suas próprias solicitações |
+| `Staff` | Gerencia solicitações do próprio departamento |
+| `Admin` | Possui acesso administrativo às solicitações |
 
-Roadmap
- Reclassificação de solicitações
- Auditoria de eventos
- Reatribuição entre departamentos
- Documentação da API
- Processamento assíncrono
- Docker
- CI/CD
+Além do perfil, algumas operações também são condicionadas ao **status da solicitação** e ao **departamento responsável**.
+
+## Testes
+
+O projeto possui testes automatizados para validar a API e suas regras de negócio.
+
+Os testes abrangem:
+
+- Autenticação e permissões;
+- Solicitações;
+- Alteração de status;
+- Histórico;
+- Filtros;
+- Transações e rollback.
+
+Para executar a suíte de testes:
+
+```bash
+python manage.py test
+```
+
+## Instalação
+
+Clone o repositório:
+
+```bash
+git clone <URL_DO_REPOSITORIO>
+cd urbanize
+```
+
+Crie e ative o ambiente virtual:
+
+```bash
+python -m venv venv
+venv\Scripts\activate
+```
+
+Instale as dependências:
+
+```bash
+pip install -r requirements.txt
+```
+
+Execute as migrations:
+
+```bash
+python manage.py migrate
+```
+
+Inicie o servidor:
+
+```bash
+python manage.py runserver
+```
+
+A aplicação estará disponível em:
+
+```text
+http://127.0.0.1:8000/
+```
+
+> O projeto utiliza variáveis de ambiente para configuração do banco de dados e outras informações sensíveis.
+
+## Roadmap
+
+- [ ] Reclassificação de solicitações
+- [ ] Auditoria de eventos
+- [ ] Reatribuição entre departamentos
+- [ ] Documentação da API
+- [ ] Processamento assíncrono
+- [ ] Docker
+- [ ] CI/CD
