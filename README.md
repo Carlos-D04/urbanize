@@ -73,6 +73,20 @@ GET /requests/?status=RESOLVED
 GET /requests/?search=buraco
 ```
 
+### Ordenação
+
+Os resultados também podem ser ordenados através do parâmetro `ordering`:
+
+```http
+GET /requests/?ordering=created_at
+```
+
+Para ordem decrescente, utilize `-` antes do campo:
+
+```http
+GET /requests/?ordering=-created_at
+```
+
 ## Controle de acesso
 
 O acesso às solicitações é definido de acordo com o perfil do usuário:
@@ -103,6 +117,16 @@ Para executar a suíte de testes:
 ```bash
 python manage.py test
 ```
+
+
+## Pré-requisitos
+
+Antes de executar o projeto, certifique-se de ter instalado:
+
+- Python 3.11.x
+- PostgreSQL
+- Git
+
 
 ## Instalação
 
