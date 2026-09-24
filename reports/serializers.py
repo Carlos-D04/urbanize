@@ -1,6 +1,7 @@
 from .models import Request, RequestHistory
 from accounts.models import User
 from accounts.serializers import UserSerializer
+from categories.models import Category
 from rest_framework import serializers
 
 
@@ -26,6 +27,9 @@ class RequestSerializer(serializers.ModelSerializer):
 
 class RequestStatusSerializer(serializers.Serializer):
     status = serializers.ChoiceField(choices=Request.Status.choices)
+
+class RequestCategorySerializer(serializers.Serializer):
+    category = serializers.PrimaryKeyRelatedField(queryset = Category.objects.all())
 
 
 class RequestHistorySerializer(serializers.ModelSerializer):

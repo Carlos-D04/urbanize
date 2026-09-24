@@ -9,9 +9,9 @@ from rest_framework.permissions import SAFE_METHODS
 
 from .filters import RequestFilter 
 from .models import Request, RequestHistory
-from .serializers import RequestSerializer, RequestStatusSerializer, RequestHistorySerializer
+from .serializers import RequestSerializer, RequestStatusSerializer, RequestHistorySerializer, RequestCategorySerializer
 from .permissions import RequestPermission, StatusPermission
-from .services import change_request_status, InvalidStatusTransition
+from .services import change_request_status, change_classified, InvalidStatusTransition, InvalidCategoryChange
 
 # Create your views here.
 
@@ -63,3 +63,22 @@ class RequestViewSet(CreateModelMixin, RetrieveModelMixin,UpdateModelMixin,ListM
         serializer = RequestHistorySerializer(queryset, many = True)
 
         return Response(serializer.data) 
+
+    @action(detail=True, methods=["patch"], url_path="reclassify", permission_classes=[IsAuthenticated, StatusPermission])
+    def reclassify(self, request, pk=None):
+        request_obj = self.get_object()
+
+        serializer = RequestCategorySerializer(data = request.data)
+        serializer.is_valid(raise_exception=True)
+
+        old_category = request_obj.category
+        new_category = serializer.validated_data["category"]
+        old_department = request_obj.department
+        new_department = new_category.department
+
+        try:
+            change_classified(request_obj, new_category = new_category, changed_by = request.user)
+        except InvalidCategoryChange:
+            return Response({"detail": "You cannot change a category to the same category"}, status = status.HTTP_400_BAD_REQUEST)
+
+        return Response({"detail": f"Your old category({old_category.name}) from {old_department.name} has been changed to {new_category.name} on {new_department.name}"}, status.HTTP_200_OK)
