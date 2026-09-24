@@ -163,3 +163,13 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     
 }
+
+
+# REMEMBER TO DISABLE THIS IF UR NOT TESTING(THIS IS JUST TO SPEED UP THE PASSWORD HASHING PROCESS ON setUp in tests module)
+TESTING = os.getenv("TESTING", "False").lower() == "true"
+
+if TESTING:
+    # This MD5 hashing is NOT usable on real projects. Use the Django one!!
+    PASSWORD_HASHERS = [
+        "django.contrib.auth.hashers.MD5PasswordHasher",
+    ]
