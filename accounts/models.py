@@ -5,6 +5,9 @@ from django.contrib.auth.models import AbstractUser
 
 class User(AbstractUser):
 
+    email = models.EmailField(blank=False, unique=True)
+    available_for_assignments = models.BooleanField(default=False)
+
     class Role(models.TextChoices):
         CITIZEN = "CITIZEN", "Citizen"
         STAFF = "STAFF", "Staff"
