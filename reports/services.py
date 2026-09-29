@@ -1,4 +1,7 @@
 from .models import Request, RequestHistory
+from notifications.services import create_status_notification
+from notifications.models import Notification
+
 from django.db import transaction
 
 class InvalidStatusTransition(Exception):
@@ -25,7 +28,15 @@ def change_request_status(request_obj, new_status, changed_by):
         with transaction.atomic():
             request_obj.save()
             RequestHistory.objects.create(request = request_obj, old_status = old_status, new_status = next_status, changed_by = changed_by, event_type = RequestHistory.EventType.STATUS_CHANGED)
-
+            create_status_notification(
+            request_obj=request_obj,
+            recipient=request_obj.author,
+            notification_type=Notification.NotificationType.STATUS_CHANGED,
+            title="Status da solicitação atualizado",
+            old_status=old_status,
+            new_status=next_status,
+            message=f"Sua solicitação teve o status alterado de {old_status} para {next_status}."
+        )
 def change_classified(request_obj, new_category, changed_by):
 
     old_category = request_obj.category

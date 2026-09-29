@@ -18,7 +18,7 @@ class Notification (models.Model):
     recipient = models.ForeignKey(User, on_delete=models.PROTECT, related_name="notifications") 
     # for now, every notification comes from a request so its mandatory to have it. Later i'll change it so it's not required when sending a notification
     request = models.ForeignKey(Request, on_delete=models.PROTECT, related_name="notifcations") 
-    type = models.CharField(max_length=30, choices=NotificationType.choices)
+    notification_type = models.CharField(max_length=30, choices=NotificationType.choices)
     title = models.CharField(max_length=100)
     message = models.TextField()
     old_status = models.CharField(max_length=20, null=True, blank=True)
