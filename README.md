@@ -111,31 +111,11 @@ O projeto continua em desenvolvimento. Entre os próximos itens estão:
 O estado de cada item deve ser atualizado conforme a implementação real,
 sem considerar planejamentos como funcionalidades concluídas.
 
-## 6. O que eu faria na v2
-
-Para uma segunda versão, eu priorizaria confiabilidade, observabilidade
-e facilidade de operação:
-
-1.  **Notificações assíncronas:** usar uma fila de tarefas para enviar
-    e-mails fora do fluxo principal da requisição, com retentativas e
-    tratamento de falhas.
-2.  **Entrega confiável de eventos:** avaliar o padrão transactional
-    outbox para evitar que uma alteração no banco seja confirmada sem
-    que o evento correspondente fique disponível para processamento.
-3.  **Mensagens entre cidadão e staff:** definir regras de autorização,
-    persistência e histórico das mensagens; avaliar WebSockets apenas se
-    a experiência exigir atualização em tempo real.
-4.  **Ambiente reproduzível:** executar a API e o PostgreSQL com Docker
-    Compose e usar um volume persistente para os dados do banco.
-5.  **Qualidade automatizada:** executar testes e verificações de estilo
-    em CI antes de aceitar alterações.
-6.  **Observabilidade:** estruturar logs e registrar erros relevantes
-    para facilitar a investigação de problemas.
 
 Esses itens são propostas para evolução, não declarações de que já
 estejam implementados.
 
-## 7. Tecnologias e execução
+## 6. Tecnologias e execução
 
 ### Tecnologias
 
