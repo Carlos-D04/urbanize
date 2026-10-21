@@ -1,5 +1,5 @@
 from .models import Request, RequestHistory
-from notifications.services import create_status_notification
+from notifications.services import create_status_notification, reclassified_warning
 from notifications.models import Notification
 
 from django.db import transaction
@@ -32,10 +32,10 @@ def change_request_status(request_obj, new_status, changed_by):
             request_obj=request_obj,
             recipient=request_obj.author,
             notification_type=Notification.NotificationType.STATUS_CHANGED,
-            title="Status da solicitação atualizado",
+            title="Solicitation status updated",
             old_status=old_status,
             new_status=next_status,
-            message=f"Sua solicitação teve o status alterado de {old_status} para {next_status}."
+            message=f"Your solicitation status has been changed from {old_status} to {next_status}."
         )
 def change_classified(request_obj, new_category, changed_by):
 
@@ -51,7 +51,9 @@ def change_classified(request_obj, new_category, changed_by):
         request_obj.department = new_department
         request_obj.save()
         RequestHistory.objects.create(request = request_obj, changed_by = changed_by, old_category = old_category, old_department = old_department, new_category = new_category, new_department = new_department, event_type = RequestHistory.EventType.RECLASSIFIED)
-        
+        if changed_by != request_obj.author:
+            reclassified_warning(request_obj = request_obj, old_category = old_category, new_category = new_category, new_department = new_department, old_department = old_department)
+
     
 
     
