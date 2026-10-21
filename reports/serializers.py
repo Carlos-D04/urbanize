@@ -16,8 +16,12 @@ class RequestSerializer(serializers.ModelSerializer):
 
     # checking the brute data first 
     def validate(self, attrs):
-        if self.context["request"].user.role == User.Role.CITIZEN and self.context["request"].method in UPDATE_METHODS and "category" in self.initial_data:
-            raise serializers.ValidationError("Validation Error")
+        if self.context["request"].method in UPDATE_METHODS and "category" in self.initial_data:
+            error = {
+                "category": "please use /requests/id/reclassify/ endpoint",
+            }
+
+            raise serializers.ValidationError(error)
         return attrs 
 
     def create(self, validated_data):

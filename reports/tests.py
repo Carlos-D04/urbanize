@@ -15,9 +15,9 @@ User = get_user_model()
 class RequestAPITestCase(APITestCase):
 
     def setUp(self):
-        self.citizen = User.objects.create_user(username="carlos", password="test123", role=User.Role.CITIZEN)
+        self.citizen = User.objects.create_user(username="carlos", email="carlos@example.com", password="test123", role=User.Role.CITIZEN)
 
-        self.other_citizen = User.objects.create_user(username="joao", password="test123", role=User.Role.CITIZEN)
+        self.other_citizen = User.objects.create_user(username="joao", email="joao@example.com", password="test123", role=User.Role.CITIZEN)
 
         self.department = Department.objects.create(name="Infrastructure", description="Infrastructure Department")
         self.other_department = Department.objects.create(name="Public Lightning", description = "Public Lighting Department")
@@ -34,9 +34,9 @@ class RequestAPITestCase(APITestCase):
             department = self.other_department
             )
 
-        self.staff = User.objects.create_user(username="John", password="test123", role=User.Role.STAFF, department = self.department)
+        self.staff = User.objects.create_user(username="John", email="john@example.com", password="test123", role=User.Role.STAFF, department = self.department)
 
-        self.admin = User.objects.create_user(username="Ferdinand", password="test123", role=User.Role.ADMIN)
+        self.admin = User.objects.create_user(username="Ferdinand", email="ferdinand@example.com", password="test123", role=User.Role.ADMIN)
 
         self.citizen_request = Request.objects.create(
             author=self.citizen,
@@ -506,7 +506,7 @@ class RequestAPITestCase(APITestCase):
             self.category
         )
 
-    def test_staff_can_change_category(self):
+    def test_staff_cannot_change_category_through_regular_update(self):
         self.client.force_authenticate(user=self.staff)
 
         data = {
@@ -519,17 +519,19 @@ class RequestAPITestCase(APITestCase):
             format="json"
         )
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("category", response.data)
 
         self.citizen_request.refresh_from_db()
 
         self.assertEqual(
             self.citizen_request.category,
-            self.other_category
+            self.category
         )
+        self.assertEqual(self.citizen_request.department, self.department)
 
 
-    def test_admin_can_change_category(self):
+    def test_admin_cannot_change_category_through_regular_update(self):
         self.client.force_authenticate(user=self.admin)
 
         data = {
@@ -542,14 +544,42 @@ class RequestAPITestCase(APITestCase):
             format="json"
         )
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("category", response.data)
 
         self.citizen_request.refresh_from_db()
 
         self.assertEqual(
             self.citizen_request.category,
-            self.other_category
+            self.category
         )
+        self.assertEqual(self.citizen_request.department, self.department)
+
+    def test_regular_update_rejects_current_category_for_all_roles(self):
+        for user in (self.citizen, self.staff, self.admin):
+            for method in ("patch", "put"):
+                with self.subTest(role=user.role, method=method):
+                    self.client.force_authenticate(user=user)
+                    data = {
+                        "title": "Attempted title update",
+                        "description": self.citizen_request.description,
+                        "location": self.citizen_request.location,
+                        "category": self.category.id,
+                    }
+
+                    response = getattr(self.client, method)(
+                        f"/requests/{self.citizen_request.id}/",
+                        data=data,
+                        format="json",
+                    )
+
+                    self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+                    self.assertIn("category", response.data)
+
+                    self.citizen_request.refresh_from_db()
+                    self.assertEqual(self.citizen_request.category, self.category)
+                    self.assertEqual(self.citizen_request.department, self.department)
+                    self.assertEqual(self.citizen_request.title, "Pothole on the street")
 
 
     def test_citizen_can_update_other_fields_without_changing_category(self):
