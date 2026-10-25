@@ -1,7 +1,7 @@
 from unittest.mock import patch
 
 from categories.models import Category
-from notifications.models import Notification
+from notifications.models import EmailDelivery, Notification
 from reports.models import Request, RequestHistory
 from reports.services import InvalidCategoryChange, change_classified
 from .base import RequestTestCase
@@ -50,6 +50,14 @@ class ReclassificationServiceTests(RequestTestCase):
         self.assertIn(self.other_category.name, notification.message)
         self.assertIn(self.other_department.name, notification.message)
 
+        self.assertEqual(EmailDelivery.objects.count(), 1)
+        delivery = EmailDelivery.objects.get(notification=notification)
+        self.assertEqual(delivery.status, EmailDelivery.StatusType.PENDING)
+        self.assertEqual(delivery.attempts, 0)
+        self.assertIsNone(delivery.last_attempted_at)
+        self.assertIsNone(delivery.sent_at)
+        self.assertEqual(delivery.last_error, "")
+
     def test_reclassification_within_same_department_notifies_author(self):
         new_category = Category.objects.create(
             name="Sidewalks", description="Sidewalk problems", department=self.department
@@ -67,6 +75,11 @@ class ReclassificationServiceTests(RequestTestCase):
         self.assertEqual(notification.new_category, new_category)
         self.assertEqual(notification.old_department, self.department)
         self.assertEqual(notification.new_department, self.department)
+        self.assertEqual(EmailDelivery.objects.count(), 1)
+        self.assertEqual(
+            EmailDelivery.objects.get(notification=notification).status,
+            EmailDelivery.StatusType.PENDING,
+        )
 
     def test_reclassification_by_author_does_not_notify(self):
         self.citizen_request.author = self.admin
@@ -79,6 +92,7 @@ class ReclassificationServiceTests(RequestTestCase):
         self.assertEqual(self.citizen_request.department, self.other_department)
         self.assertEqual(RequestHistory.objects.filter(request=self.citizen_request).count(), 1)
         self.assertFalse(Notification.objects.exists())
+        self.assertFalse(EmailDelivery.objects.exists())
 
     def test_reclassification_notifies_without_changing_status_at_any_stage(self):
         for request_status in Request.Status.values:
@@ -129,11 +143,30 @@ class ReclassificationServiceTests(RequestTestCase):
 
         self.citizen_request.refresh_from_db()
         self.assertFalse(Notification.objects.exists())
+        self.assertFalse(EmailDelivery.objects.exists())
 
         self.assertEqual(self.citizen_request.category, self.category)
         self.assertEqual(self.citizen_request.department, self.department)
 
         self.assertEqual(RequestHistory.objects.count(), 0)
+
+    def test_reclassification_rolls_back_if_email_delivery_creation_fails(self):
+        original_updated_at = self.citizen_request.updated_at
+        with patch(
+            "notifications.services.EmailDelivery.objects.create",
+            side_effect=RuntimeError("Simulated delivery failure"),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "Simulated delivery failure"):
+                change_classified(self.citizen_request, self.other_category, self.staff)
+
+        self.citizen_request.refresh_from_db()
+        self.assertEqual(self.citizen_request.category, self.category)
+        self.assertEqual(self.citizen_request.department, self.department)
+        self.assertEqual(self.citizen_request.status, Request.Status.PENDING)
+        self.assertEqual(self.citizen_request.updated_at, original_updated_at)
+        self.assertFalse(RequestHistory.objects.exists())
+        self.assertFalse(Notification.objects.exists())
+        self.assertFalse(EmailDelivery.objects.exists())
 
     def test_reclassification_rolls_back_if_history_creation_fails(self):
         with self.assertRaises(Exception):

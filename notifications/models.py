@@ -29,3 +29,18 @@ class Notification (models.Model):
     new_department = models.ForeignKey(Department, on_delete = models.PROTECT, null = True, blank = True, related_name = "new_department_notifications")
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
+
+
+class EmailDelivery(models.Model):
+    class StatusType(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        SENT = "SENT", "Sent"
+        FAILED = "FAILED", "Failed"
+
+    notification = models.OneToOneField(Notification, on_delete=models.PROTECT)
+    status = models.CharField(choices=StatusType.choices, default=StatusType.PENDING, max_length=10)
+    attempts = models.PositiveIntegerField(default=0)
+    last_attempted_at = models.DateTimeField(blank=True, null=True)
+    sent_at = models.DateTimeField(blank=True, null=True)
+    last_error = models.TextField(blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
