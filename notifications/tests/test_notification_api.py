@@ -9,7 +9,7 @@ from rest_framework.test import APITestCase
 from categories.models import Category
 from departments.models import Department
 from reports.models import Request
-from .models import Notification
+from ..models import Notification
 
 User = get_user_model()
 
