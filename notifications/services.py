@@ -1,7 +1,12 @@
 from datetime import timedelta
+from django.utils import timezone
+from django.core.mail import send_mail
+from smtplib import SMTPException
 
 from .models import Notification, EmailDelivery
+from accounts.models import User
 from reports.models import Request
+
 
 def create_status_notification(request_obj, recipient, notification_type, title, old_status, new_status, message):
 
@@ -54,3 +59,45 @@ def can_attempt_email_delivery(delivery, now):
         return False
 
     return True
+
+def attempt_email_delivery(delivery):
+    now = timezone.now()
+
+    if can_attempt_email_delivery(delivery, now) == False:
+        return "skipped"
+
+    notification = delivery.notification
+    recipient = User.objects.get(pk = notification.recipient_id) # guarantees that the recipient.email is the current email.
+    delivery.attempts +=1
+    delivery.last_attempted_at = now
+    delivery.save(update_fields=['attempts', 'last_attempted_at'])
+
+    try:
+        sent_count  = send_mail(
+            subject = notification.title,
+            message = notification.message,
+            from_email = None,
+            recipient_list = [recipient.email]
+        )
+
+    except (SMTPException, OSError) as exc:
+        delivery.status = EmailDelivery.StatusType.FAILED
+        delivery.last_error = str(exc)
+        delivery.save(update_fields=['status', 'last_error'])
+
+        return "failed"
+
+    if sent_count == 1: #send_email returns a number(1, 0) so keep it
+        delivery.last_error = ""
+        delivery.status = EmailDelivery.StatusType.SENT
+        delivery.sent_at = timezone.now()
+        delivery.save(update_fields=['last_error', 'status', 'sent_at'])
+
+        return "sent"
+
+    elif sent_count == 0:
+        delivery.last_error = "Email backend reported no messages sent."
+        delivery.status = EmailDelivery.StatusType.FAILED
+        delivery.save(update_fields=['last_error', 'status'])
+
+        return "failed"
