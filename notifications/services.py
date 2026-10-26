@@ -1,3 +1,4 @@
+from datetime import timedelta
 
 from .models import Notification, EmailDelivery
 from reports.models import Request
@@ -37,3 +38,19 @@ def create_email_delivery(notification_obj):
     delivery = EmailDelivery.objects.create(notification = notification_obj)
 
     return delivery
+
+def can_attempt_email_delivery(delivery, now):
+
+    if delivery.status == EmailDelivery.StatusType.SENT or delivery.attempts >= 3:
+        return False
+
+    if delivery.last_attempted_at:
+        next_attempt_at = delivery.last_attempted_at + timedelta(minutes=30)
+
+        if now < next_attempt_at:
+            return False
+
+    if EmailDelivery.objects.filter(notification__recipient = delivery.notification.recipient, status = EmailDelivery.StatusType.SENT, sent_at__gt = (now - timedelta(minutes = 30))).exists():
+        return False
+
+    return True
