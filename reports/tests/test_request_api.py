@@ -2,6 +2,7 @@ from rest_framework import status
 from unittest.mock import patch
 
 from reports.models import Request, RequestHistory
+from reports.services import change_request_status
 from .base import RequestTestCase
 
 
@@ -89,11 +90,10 @@ class RequestApiTests(RequestTestCase):
     def test_can_check_own_request_history(self):
         self.client.force_authenticate(user = self.citizen)
 
-        RequestHistory.objects.create(
-            request=self.citizen_request,
+        change_request_status(
+            self.citizen_request,
+            new_status=Request.Status.IN_REVIEW,
             changed_by=self.staff,
-            old_status=Request.Status.PENDING,
-            new_status=Request.Status.IN_REVIEW
         )
 
         response = self.client.get(f"/requests/{self.citizen_request.id}/history/")
@@ -104,6 +104,13 @@ class RequestApiTests(RequestTestCase):
 
         self.assertEqual(response.data[0]["old_status"],Request.Status.PENDING)
         self.assertEqual(response.data[0]["new_status"],Request.Status.IN_REVIEW)
+        event = response.data[0]
+        self.assertEqual(event["event_type"], RequestHistory.EventType.STATUS_CHANGED)
+        self.assertEqual(event["request"], self.citizen_request.pk)
+        self.assertEqual(event["changed_by"], {"id": self.staff.pk, "username": self.staff.username})
+        for field in ("old_category", "new_category", "old_department", "new_department"):
+            with self.subTest(field=field):
+                self.assertIsNone(event[field])
 
     def test_request_without_history_returns_empty_list(self):
         self.client.force_authenticate(user=self.admin)

@@ -41,5 +41,5 @@ class RequestHistorySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = RequestHistory
-        fields = ["request", "changed_by", "old_status", "new_status", "created_at"]
-        read_only_fields = ["request", "changed_by", "old_status", "new_status", "created_at"]
+        fields = ["request", "changed_by", "old_status", "new_status", "created_at", "event_type", "old_category", "new_category", "old_department", "new_department"]
+        read_only_fields = ["request", "changed_by", "old_status", "new_status", "created_at", "event_type", "old_category", "new_category", "old_department", "new_department"]
