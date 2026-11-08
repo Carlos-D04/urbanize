@@ -8,6 +8,22 @@ from .base import RequestTestCase
 
 
 class ReclassificationServiceTests(RequestTestCase):
+    def test_stale_request_cannot_repeat_a_completed_reclassification(self):
+        stale_request = Request.objects.get(pk=self.citizen_request.pk)
+        change_classified(self.citizen_request, self.other_category, self.admin)
+
+        with self.assertRaises(InvalidCategoryChange):
+            change_classified(stale_request, self.other_category, self.admin)
+
+        self.citizen_request.refresh_from_db()
+        self.assertEqual(self.citizen_request.category, self.other_category)
+        self.assertEqual(self.citizen_request.department, self.other_department)
+        self.assertEqual(RequestHistory.objects.filter(request=self.citizen_request).count(), 1)
+        self.assertEqual(Notification.objects.filter(request=self.citizen_request).count(), 1)
+        self.assertEqual(
+            EmailDelivery.objects.filter(notification__request=self.citizen_request).count(), 1
+        )
+
     def test_service_reclassifies_request(self):
         self.assertEqual(self.citizen_request.category, self.category)
         self.assertEqual(self.citizen_request.department, self.department)

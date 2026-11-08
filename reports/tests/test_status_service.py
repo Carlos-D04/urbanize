@@ -7,6 +7,18 @@ from .base import RequestTestCase
 
 
 class StatusServiceTests(RequestTestCase):
+    def test_stale_request_cannot_repeat_a_committed_status_change(self):
+        stale_request = Request.objects.get(pk=self.citizen_request.pk)
+        change_request_status(self.citizen_request, Request.Status.IN_REVIEW, self.staff)
+
+        with self.assertRaises(InvalidStatusTransition):
+            change_request_status(stale_request, Request.Status.IN_REVIEW, self.staff)
+
+        self.citizen_request.refresh_from_db()
+        self.assertEqual(self.citizen_request.status, Request.Status.IN_REVIEW)
+        self.assertEqual(RequestHistory.objects.filter(request=self.citizen_request).count(), 1)
+        self.assertEqual(Notification.objects.filter(request=self.citizen_request).count(), 1)
+
     def test_service_rejects_skipped_status(self):
 
         old_status = self.citizen_request.status

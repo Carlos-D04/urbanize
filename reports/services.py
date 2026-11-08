@@ -18,15 +18,16 @@ def change_request_status(request_obj, new_status, changed_by):
             Request.Status.IN_PROGRESS: Request.Status.RESOLVED
         }
 
-        old_status = request_obj.status
-        next_status = allowed_transitions.get(old_status)
-
-        if new_status != next_status:
-            raise InvalidStatusTransition("Invalid status transition")
-
-        request_obj.status = next_status
         with transaction.atomic():
-            request_obj.save()
+            request_obj = Request.objects.select_for_update().get(pk=request_obj.pk)
+            old_status = request_obj.status
+            next_status = allowed_transitions.get(old_status)
+
+            if next_status is None or new_status != next_status:
+                raise InvalidStatusTransition("Invalid status transition")
+
+            request_obj.status = next_status
+            request_obj.save(update_fields=["status", "updated_at"])
             RequestHistory.objects.create(request = request_obj, old_status = old_status, new_status = next_status, changed_by = changed_by, event_type = RequestHistory.EventType.STATUS_CHANGED)
             create_status_notification(
             request_obj=request_obj,
@@ -38,24 +39,18 @@ def change_request_status(request_obj, new_status, changed_by):
             message=f"Your solicitation status has been changed from {old_status} to {next_status}."
         )
 def change_classified(request_obj, new_category, changed_by):
-
-    old_category = request_obj.category
-    old_department = request_obj.department
-    new_department = new_category.department
-
-    if new_category == old_category:
-          raise InvalidCategoryChange("You cannot change a category to the same category")
-
     with transaction.atomic():
+        request_obj = Request.objects.select_for_update().get(pk=request_obj.pk)
+        old_category = request_obj.category
+        old_department = request_obj.department
+        new_department = new_category.department
+
+        if new_category == old_category:
+            raise InvalidCategoryChange("You cannot change a category to the same category")
+
         request_obj.category = new_category
         request_obj.department = new_department
-        request_obj.save()
+        request_obj.save(update_fields=["category", "department", "updated_at"])
         RequestHistory.objects.create(request = request_obj, changed_by = changed_by, old_category = old_category, old_department = old_department, new_category = new_category, new_department = new_department, event_type = RequestHistory.EventType.RECLASSIFIED)
         if changed_by != request_obj.author:
             reclassified_warning(request_obj = request_obj, old_category = old_category, new_category = new_category, new_department = new_department, old_department = old_department)
-
-    
-
-    
-
-     
