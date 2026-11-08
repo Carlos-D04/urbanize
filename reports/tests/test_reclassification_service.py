@@ -1,13 +1,31 @@
 from unittest.mock import patch
 
+from django.core.exceptions import PermissionDenied
+
 from categories.models import Category
 from notifications.models import EmailDelivery, Notification
 from reports.models import Request, RequestHistory
-from reports.services import InvalidCategoryChange, change_classified
+from reports.services import InvalidCategoryChange, change_classified, change_request_status
 from .base import RequestTestCase
 
 
 class ReclassificationServiceTests(RequestTestCase):
+    def test_previous_department_staff_cannot_manage_stale_request_after_transfer(self):
+        stale_request = Request.objects.get(pk=self.citizen_request.pk)
+        change_classified(self.citizen_request, self.other_category, self.admin)
+
+        with self.assertRaises(PermissionDenied):
+            change_request_status(stale_request, Request.Status.IN_REVIEW, self.staff)
+        with self.assertRaises(PermissionDenied):
+            change_classified(stale_request, self.category, self.staff)
+
+        self.citizen_request.refresh_from_db()
+        self.assertEqual(self.citizen_request.status, Request.Status.PENDING)
+        self.assertEqual(self.citizen_request.category, self.other_category)
+        self.assertEqual(self.citizen_request.department, self.other_department)
+        self.assertEqual(RequestHistory.objects.filter(request=self.citizen_request).count(), 1)
+        self.assertEqual(Notification.objects.filter(request=self.citizen_request).count(), 1)
+
     def test_stale_request_cannot_repeat_a_completed_reclassification(self):
         stale_request = Request.objects.get(pk=self.citizen_request.pk)
         change_classified(self.citizen_request, self.other_category, self.admin)

@@ -17,16 +17,13 @@ class RequestPermission(BasePermission):
 
         return False
 
+def can_manage_request(user, request_obj):
+    return user.role == user.Role.ADMIN or (
+        user.role == user.Role.STAFF
+        and user.department_id == request_obj.department_id
+    )
+
+
 class StatusPermission(BasePermission):
-
     def has_object_permission(self, request, view, obj):
-        if request.user.role == request.user.Role.CITIZEN:
-            return False
-
-        if request.user.role == request.user.Role.STAFF:
-            return obj.department == request.user.department
-
-        if request.user.role == request.user.Role.ADMIN:
-            return True
-
-        return False
+        return can_manage_request(request.user, obj)

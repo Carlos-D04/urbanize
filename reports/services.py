@@ -1,7 +1,9 @@
 from .models import Request, RequestHistory
+from .permissions import can_manage_request
 from notifications.services import create_status_notification, reclassified_warning
 from notifications.models import Notification
 
+from django.core.exceptions import PermissionDenied
 from django.db import transaction
 
 class InvalidStatusTransition(Exception):
@@ -20,6 +22,8 @@ def change_request_status(request_obj, new_status, changed_by):
 
         with transaction.atomic():
             request_obj = Request.objects.select_for_update().get(pk=request_obj.pk)
+            if not can_manage_request(changed_by, request_obj):
+                raise PermissionDenied("You cannot manage this request.")
             old_status = request_obj.status
             next_status = allowed_transitions.get(old_status)
 
@@ -41,6 +45,8 @@ def change_request_status(request_obj, new_status, changed_by):
 def change_classified(request_obj, new_category, changed_by):
     with transaction.atomic():
         request_obj = Request.objects.select_for_update().get(pk=request_obj.pk)
+        if not can_manage_request(changed_by, request_obj):
+            raise PermissionDenied("You cannot manage this request.")
         old_category = request_obj.category
         old_department = request_obj.department
         new_department = new_category.department
