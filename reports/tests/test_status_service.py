@@ -1,5 +1,7 @@
 from unittest.mock import patch
 
+from django.db import DatabaseError, transaction
+
 from notifications.models import EmailDelivery, Notification
 from reports.models import Request, RequestHistory
 from reports.services import InvalidStatusTransition, change_request_status
@@ -35,7 +37,9 @@ class StatusServiceTests(RequestTestCase):
 
         self.assertEqual(RequestHistory.objects.count(), 0)
 
-        change_request_status(self.citizen_request, Request.Status.IN_REVIEW, changed_by = self.staff)
+        with self.captureOnCommitCallbacks(execute=True) as callbacks:
+            change_request_status(self.citizen_request, Request.Status.IN_REVIEW, self.staff)
+        self.assertEqual(callbacks, [])
 
         self.citizen_request.refresh_from_db()
 
@@ -61,7 +65,12 @@ class StatusServiceTests(RequestTestCase):
                 self.citizen_request.status = old_status
                 self.citizen_request.save(update_fields=["status"])
 
-                change_request_status(self.citizen_request, new_status, self.staff)
+                with self.captureOnCommitCallbacks(execute=True) as callbacks:
+                    change_request_status(self.citizen_request, new_status, self.staff)
+                    self.assertFalse(EmailDelivery.objects.filter(
+                        notification__request=self.citizen_request, notification__new_status=new_status
+                    ).exists())
+                self.assertEqual(len(callbacks), 1)
 
                 self.citizen_request.refresh_from_db()
                 self.assertEqual(self.citizen_request.status, new_status)
@@ -78,23 +87,38 @@ class StatusServiceTests(RequestTestCase):
                     EmailDelivery.objects.filter(notification=notification).count(), 1
                 )
 
-    def test_status_change_rolls_back_if_email_delivery_creation_fails(self):
+    def test_status_change_survives_email_delivery_creation_failure(self):
         self.citizen_request.status = Request.Status.IN_REVIEW
         self.citizen_request.save()
-        original_updated_at = self.citizen_request.updated_at
 
         with patch(
             "notifications.services.EmailDelivery.objects.create",
-            side_effect=RuntimeError("Simulated delivery failure"),
+            side_effect=DatabaseError("Simulated delivery failure"),
         ):
-            with self.assertRaisesRegex(RuntimeError, "Simulated delivery failure"):
-                change_request_status(
-                    self.citizen_request, Request.Status.IN_PROGRESS, self.staff
-                )
+            with self.assertLogs("notifications.services", level="ERROR") as logs:
+                with self.captureOnCommitCallbacks(execute=True):
+                    change_request_status(self.citizen_request, Request.Status.IN_PROGRESS, self.staff)
 
         self.citizen_request.refresh_from_db()
+        self.assertEqual(self.citizen_request.status, Request.Status.IN_PROGRESS)
+        self.assertEqual(RequestHistory.objects.filter(request=self.citizen_request).count(), 1)
+        self.assertEqual(Notification.objects.filter(request=self.citizen_request).count(), 1)
+        self.assertFalse(EmailDelivery.objects.exists())
+        self.assertIn("Simulated delivery failure", "\n".join(logs.output))
+
+    def test_rollback_discards_scheduled_email_delivery(self):
+        self.citizen_request.status = Request.Status.IN_REVIEW
+        self.citizen_request.save(update_fields=["status"])
+
+        with self.captureOnCommitCallbacks(execute=True) as callbacks:
+            with self.assertRaisesRegex(RuntimeError, "Roll back request changes"):
+                with transaction.atomic():
+                    change_request_status(self.citizen_request, Request.Status.IN_PROGRESS, self.staff)
+                    raise RuntimeError("Roll back request changes")
+
+        self.assertEqual(callbacks, [])
+        self.citizen_request.refresh_from_db()
         self.assertEqual(self.citizen_request.status, Request.Status.IN_REVIEW)
-        self.assertEqual(self.citizen_request.updated_at, original_updated_at)
         self.assertFalse(RequestHistory.objects.exists())
         self.assertFalse(Notification.objects.exists())
         self.assertFalse(EmailDelivery.objects.exists())

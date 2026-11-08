@@ -1,11 +1,15 @@
+import logging
 from datetime import timedelta
 from django.utils import timezone
 from django.core.mail import send_mail
+from django.db import DatabaseError, transaction
 from smtplib import SMTPException
 
 from .models import Notification, EmailDelivery
 from accounts.models import User
 from reports.models import Request
+
+logger = logging.getLogger(__name__)
 
 
 def create_status_notification(request_obj, recipient, notification_type, title, old_status, new_status, message):
@@ -20,7 +24,7 @@ def create_status_notification(request_obj, recipient, notification_type, title,
         message = message
     )
     if new_status == Request.Status.IN_PROGRESS or new_status == Request.Status.RESOLVED:
-        create_email_delivery(notification_obj)
+        schedule_email_delivery(notification_obj)
 
     return notification_obj
 
@@ -34,9 +38,21 @@ def reclassified_warning(request_obj, old_category, new_category, new_department
 
     notification_obj = Notification.objects.create(recipient = request_obj.author, request = request_obj, notification_type = Notification.NotificationType.RECLASSIFIED, title = "Solicitation reclassified", message = message, new_department = new_department, old_department = old_department, old_category = old_category, new_category = new_category)
 
-    create_email_delivery(notification_obj)
+    schedule_email_delivery(notification_obj)
 
     return notification_obj
+
+def schedule_email_delivery(notification_obj):
+    def enqueue_delivery():
+        try:
+            create_email_delivery(notification_obj)
+        except DatabaseError:
+            logger.exception(
+                "Could not create an email delivery for notification %s.", notification_obj.pk
+            )
+
+    transaction.on_commit(enqueue_delivery, robust=True)
+
 
 def create_email_delivery(notification_obj):
 

@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 from django.core.exceptions import PermissionDenied
+from django.db import DatabaseError
 
 from categories.models import Category
 from notifications.models import EmailDelivery, Notification
@@ -28,7 +29,8 @@ class ReclassificationServiceTests(RequestTestCase):
 
     def test_stale_request_cannot_repeat_a_completed_reclassification(self):
         stale_request = Request.objects.get(pk=self.citizen_request.pk)
-        change_classified(self.citizen_request, self.other_category, self.admin)
+        with self.captureOnCommitCallbacks(execute=True):
+            change_classified(self.citizen_request, self.other_category, self.admin)
 
         with self.assertRaises(InvalidCategoryChange):
             change_classified(stale_request, self.other_category, self.admin)
@@ -47,11 +49,10 @@ class ReclassificationServiceTests(RequestTestCase):
         self.assertEqual(self.citizen_request.department, self.department)
         self.assertEqual(RequestHistory.objects.count(), 0)
 
-        change_classified(
-            self.citizen_request,
-            self.other_category,
-            self.staff
-        )
+        with self.captureOnCommitCallbacks(execute=True) as callbacks:
+            change_classified(self.citizen_request, self.other_category, self.staff)
+            self.assertFalse(EmailDelivery.objects.exists())
+        self.assertEqual(len(callbacks), 1)
 
         self.citizen_request.refresh_from_db()
 
@@ -97,7 +98,8 @@ class ReclassificationServiceTests(RequestTestCase):
             name="Sidewalks", description="Sidewalk problems", department=self.department
         )
 
-        change_classified(self.citizen_request, new_category, self.staff)
+        with self.captureOnCommitCallbacks(execute=True):
+            change_classified(self.citizen_request, new_category, self.staff)
 
         self.citizen_request.refresh_from_db()
         self.assertEqual(self.citizen_request.category, new_category)
@@ -184,22 +186,21 @@ class ReclassificationServiceTests(RequestTestCase):
 
         self.assertEqual(RequestHistory.objects.count(), 0)
 
-    def test_reclassification_rolls_back_if_email_delivery_creation_fails(self):
-        original_updated_at = self.citizen_request.updated_at
+    def test_reclassification_survives_email_delivery_creation_failure(self):
         with patch(
             "notifications.services.EmailDelivery.objects.create",
-            side_effect=RuntimeError("Simulated delivery failure"),
+            side_effect=DatabaseError("Simulated delivery failure"),
         ):
-            with self.assertRaisesRegex(RuntimeError, "Simulated delivery failure"):
-                change_classified(self.citizen_request, self.other_category, self.staff)
+            with self.assertLogs("notifications.services", level="ERROR"):
+                with self.captureOnCommitCallbacks(execute=True):
+                    change_classified(self.citizen_request, self.other_category, self.staff)
 
         self.citizen_request.refresh_from_db()
-        self.assertEqual(self.citizen_request.category, self.category)
-        self.assertEqual(self.citizen_request.department, self.department)
+        self.assertEqual(self.citizen_request.category, self.other_category)
+        self.assertEqual(self.citizen_request.department, self.other_department)
         self.assertEqual(self.citizen_request.status, Request.Status.PENDING)
-        self.assertEqual(self.citizen_request.updated_at, original_updated_at)
-        self.assertFalse(RequestHistory.objects.exists())
-        self.assertFalse(Notification.objects.exists())
+        self.assertEqual(RequestHistory.objects.filter(request=self.citizen_request).count(), 1)
+        self.assertEqual(Notification.objects.filter(request=self.citizen_request).count(), 1)
         self.assertFalse(EmailDelivery.objects.exists())
 
     def test_reclassification_rolls_back_if_history_creation_fails(self):
