@@ -29,6 +29,30 @@ services:
     image: axllent/mailpit
     ports:
       - "127.0.0.1:8025:8025"
+  email_processor:
+    build: .
+    profiles: ["email-worker"]
+    env_file:
+      - .env
+    init: true
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    command:
+      - /bin/sh
+      - -c
+      - |
+        trap 'exit 0' TERM INT
+        while true; do
+          if ! python manage.py process_email_deliveries; then
+            echo "Email delivery processing failed; retrying in 5 minutes." >&2
+          fi
+          sleep 300 &
+          wait $$!
+        done
 
 volumes:
   postgres_data:

@@ -40,7 +40,8 @@ in-app notification, schedules an email delivery after the main transaction
 commits. If the delivery record cannot be created, the request change, history,
 and in-app notification are preserved and the error is logged.
 
-The email processor runs manually. It uses the recipient's current email
+The email processor can run manually or through an opt-in Compose service. It
+uses the recipient's current email
 address, processes candidate deliveries oldest first, allows up to three
 attempts per delivery, and waits at least 30 minutes between attempts on the
 same delivery. It also waits 30 minutes after a successful delivery before
@@ -96,7 +97,7 @@ docker compose exec web python manage.py process_email_deliveries
 ```
 
 Run one instance at a time. The command reports sent, failed, skipped, and
-expired deliveries. It does not run automatically.
+expired deliveries.
 
 Django uses the console email backend by default. To capture email locally over
 SMTP, set these values in your `.env`:
@@ -115,6 +116,26 @@ recipient, subject, and body match in [Mailpit](http://127.0.0.1:8025/).
 
 This workflow has been verified against Mailpit. Messages stay in the local
 capture service; this does not validate delivery to an external inbox.
+
+### Run email processing periodically
+
+After applying migrations and configuring SMTP for Mailpit, start the optional
+processor:
+
+```powershell
+docker compose --profile email-worker up -d --build email_processor
+docker compose --profile email-worker logs -f email_processor
+```
+
+The service runs one pass immediately, waits five minutes after it finishes,
+and repeats. A failed pass is logged and retried on the next cycle. The
+five-minute interval controls when the queue is checked; the per-recipient
+30-minute rule still applies. The service does not start with the default
+Compose profile.
+
+Keep a single processor replica. Before running the command manually, stop the
+periodic service with `docker compose --profile email-worker stop email_processor`
+to avoid overlap.
 
 ### Run tests
 
@@ -150,8 +171,7 @@ search, and ordering by creation or update date. For example:
 
 ## Known limits
 
-- Scheduled execution of the processor and delivery to external inboxes are
-  still pending.
+- Delivery to external inboxes has not been validated.
 - The processor does not coordinate concurrent runs. If the mail backend accepts
   a message but the database update fails, a later attempt may send it again.
 - Direct edits to requests in Django Admin do not use the API services that
