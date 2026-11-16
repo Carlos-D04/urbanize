@@ -42,6 +42,10 @@ class ProcessEmailDeliveriesTests(TestCase):
         EmailDelivery.objects.filter(pk__in=[retry.pk, deferred.pk]).update(created_at=timestamp)
         EmailDelivery.objects.filter(pk=first.pk).update(created_at=timestamp - timedelta(minutes=1))
         exhausted = delivery_for(other, "Exhausted", status=states.FAILED, attempts=3)
+        expired = delivery_for(author, "Stale update", status=states.FAILED, attempts=1)
+        Notification.objects.filter(pk=expired.notification_id).update(
+            created_at=timestamp - timedelta(hours=25)
+        )
         already_sent = delivery_for(other, "Already sent", status=states.SENT, attempts=1,
                                     sent_at=timestamp - timedelta(hours=1))
         output = StringIO()
@@ -51,11 +55,12 @@ class ProcessEmailDeliveriesTests(TestCase):
 
         self.assertEqual([call.kwargs["subject"] for call in send_mail.call_args_list],
                          ["First update", "Retry"])
-        self.assertIn("Sent: 1; Failed: 1; Skipped: 1", output.getvalue())
+        self.assertIn("Sent: 1; Failed: 1; Skipped: 1; Expired: 1", output.getvalue())
         for delivery, expected_state, attempts in (
             (first, states.SENT, 1), (retry, states.FAILED, 2),
             (deferred, states.PENDING, 0), (exhausted, states.FAILED, 3),
             (already_sent, states.SENT, 1),
+            (expired, states.EXPIRED, 1),
         ):
             with self.subTest(delivery=delivery.pk):
                 delivery.refresh_from_db()

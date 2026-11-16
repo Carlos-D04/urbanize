@@ -38,6 +38,22 @@ class EmailDeliveryAttemptTests(TestCase):
         )
         cls.delivery = EmailDelivery.objects.create(notification=cls.notification)
 
+    def test_delivery_expires_at_twenty_four_hours_without_attempting_send(self):
+        Notification.objects.filter(pk=self.notification.pk).update(
+            created_at=self.now - timedelta(hours=24)
+        )
+        self.delivery.refresh_from_db()
+        with patch("notifications.services.timezone.now", return_value=self.now):
+            with patch("notifications.services.send_mail") as send:
+                self.assertEqual(attempt_email_delivery(self.delivery), "expired")
+                self.assertEqual(attempt_email_delivery(self.delivery), "skipped")
+
+        send.assert_not_called()
+        self.delivery.refresh_from_db()
+        self.assertEqual(self.delivery.status, EmailDelivery.StatusType.EXPIRED)
+        self.assertEqual(self.delivery.attempts, 0)
+        self.assertIsNone(self.delivery.last_attempted_at)
+
     def test_success_records_attempt_and_confirmation_time(self):
         confirmed_at = self.now + timedelta(seconds=5)
         with patch("notifications.services.timezone.now", side_effect=[self.now, confirmed_at]):

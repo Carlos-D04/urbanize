@@ -60,9 +60,16 @@ def create_email_delivery(notification_obj):
 
     return delivery
 
+def email_delivery_has_expired(delivery, now):
+    return now >= delivery.notification.created_at + timedelta(hours=24)
+
+
 def can_attempt_email_delivery(delivery, now):
 
-    if delivery.status == EmailDelivery.StatusType.SENT or delivery.attempts >= 3:
+    if delivery.status not in (EmailDelivery.StatusType.PENDING, EmailDelivery.StatusType.FAILED) or delivery.attempts >= 3:
+        return False
+
+    if email_delivery_has_expired(delivery, now):
         return False
 
     if delivery.last_attempted_at:
@@ -78,6 +85,15 @@ def can_attempt_email_delivery(delivery, now):
 
 def attempt_email_delivery(delivery):
     now = timezone.now()
+
+    if (
+        delivery.status in (EmailDelivery.StatusType.PENDING, EmailDelivery.StatusType.FAILED)
+        and delivery.attempts < 3
+        and email_delivery_has_expired(delivery, now)
+    ):
+        delivery.status = EmailDelivery.StatusType.EXPIRED
+        delivery.save(update_fields=["status"])
+        return "expired"
 
     if can_attempt_email_delivery(delivery, now) == False:
         return "skipped"

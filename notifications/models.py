@@ -36,6 +36,7 @@ class EmailDelivery(models.Model):
         PENDING = "PENDING", "Pending"
         SENT = "SENT", "Sent"
         FAILED = "FAILED", "Failed"
+        EXPIRED = "EXPIRED", "Expired"
 
     notification = models.OneToOneField(Notification, on_delete=models.PROTECT)
     status = models.CharField(choices=StatusType.choices, default=StatusType.PENDING, max_length=10)
