@@ -98,12 +98,23 @@ docker compose exec web python manage.py process_email_deliveries
 Run one instance at a time. The command reports sent, failed, skipped, and
 expired deliveries. It does not run automatically.
 
-Django currently uses the console email backend: it prints messages in the
-command output. A `SENT` record in this mode means that the backend processed the
-message, not that it reached an inbox. If the Mailpit service is configured in
-your Compose file, its interface is at [localhost:8025](http://localhost:8025/),
-with SMTP available at `mailpit:1025` inside Compose. Connecting Django to that
-SMTP service is still pending.
+Django uses the console email backend by default. To capture email locally over
+SMTP, set these values in your `.env`:
+
+```dotenv
+EMAIL_BACKEND=smtp
+EMAIL_HOST=mailpit
+EMAIL_PORT=1025
+```
+
+Run `docker compose up -d --build web mailpit` to load the updated environment.
+Using the API, move a test request from `PENDING` to `IN_REVIEW` and then to
+`IN_PROGRESS`. The second transition creates a pending delivery. Run the
+processor above and verify that the delivery is `SENT` in Django Admin and the
+recipient, subject, and body match in [Mailpit](http://127.0.0.1:8025/).
+
+This workflow has been verified against Mailpit. Messages stay in the local
+capture service; this does not validate delivery to an external inbox.
 
 ### Run tests
 
@@ -139,8 +150,8 @@ search, and ordering by creation or update date. For example:
 
 ## Known limits
 
-- End-to-end SMTP validation and scheduled execution of the email processor
-  are still pending.
+- Scheduled execution of the processor and delivery to external inboxes are
+  still pending.
 - The processor does not coordinate concurrent runs. If the mail backend accepts
   a message but the database update fails, a later attempt may send it again.
 - Direct edits to requests in Django Admin do not use the API services that
