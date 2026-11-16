@@ -148,6 +148,16 @@ MAILERS = {
     },
 }
 
+if os.getenv("EMAIL_BACKEND", "console").strip().lower() == "smtp":
+    MAILERS["default"] = {
+        "BACKEND": "django.core.mail.backends.smtp.EmailBackend",
+        "OPTIONS": {
+            "host": os.getenv("EMAIL_HOST", "mailpit"),
+            "port": int(os.getenv("EMAIL_PORT", "1025")),
+            "timeout": 10,
+        },
+    }
+
 AUTH_USER_MODEL = "accounts.User"
 
 REST_FRAMEWORK = {
